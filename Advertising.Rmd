@@ -1,0 +1,148 @@
+---
+title: "Advertising"
+author: "Gokul Shanth Raveendran"
+date: "2/17/2020"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<h1>Data Analysis on Advertising Dataset</h1>
+
+Loading the libraries 
+```{r}
+rm(list=ls())
+library(rio)
+library(ggplot2) 
+library(corrplot)
+library(car)
+```
+
+Importing the dataset and checking scatter plots for the three columns in the dataset.
+
+```{r}
+advertising=import("Advertising.csv")
+ggplot(data = advertising, aes(x = print, y = sales)) + 
+  geom_point(color='black') +
+  geom_smooth(method = "lm", se = FALSE)
+
+ggplot(data = advertising, aes(x = tv, y = sales)) + 
+  geom_point(color='black') +
+  geom_smooth(method = "lm", se = FALSE)
+
+ggplot(data = advertising, aes(x = online, y = sales)) + 
+  geom_point(color='black') +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+We can see a linear relationship between tv spending and sales, online and sales but not so much between print and sales
+
+```{r}
+tv.out = lm(sales~tv, data = advertising)
+summary(tv.out)
+
+online.out = lm(sales~online, data = advertising)
+summary(online.out)
+
+print.out = lm(sales~print, data = advertising)
+summary(print.out)
+```
+
+Since all the models have a significant p value, we can reject the null hypothesis and we can say that there is a relationship between sales and the independent variables.
+We can use the R square to assess the accuracy of the model. R squared explains variablity of in the data, higher the R square the more closer are the data to the fitted regression line.
+
+Since the R squared values are low, we can combine them to see if they have a better explanation.
+
+```{r}
+print.out = lm(sales~print+online+tv, data = advertising)
+summary(print.out)
+```
+
+This gives us an improved R square of almost 90%. However you'll notice that in a simple linear regression between print and sales was statistically significant however in multiple it is giving us a negative beta coefficient suggesting that it causes a decrease in sales? 
+To build a better model lets take a look at the correlation matrix
+```{r}
+cor(advertising)
+corrplot(cor(advertising), method="circle")
+```
+
+We can see that the correlation between tv and sales, online and sales are 0.7 and 0.57 but correlation between online and print is higher than between print and sales. What we can interpret by this is that there has been a tendency to spend more in print in markets where we spend more on online advertising. To put things in perspective, even though print doesn't increase sales it, gets recognition for the impact of online spending on sales when we do a simple linear regression. Therefore removing it will not alter the regression significantly in predicting sales.
+
+```{r}
+onlinetv = lm(sales~online+tv, data = advertising)
+summary(onlinetv)
+```
+
+As we can see from the above summary there is not really that much difference in the R square. The p values indicate that tv and online are related to sales but there is no proof that print is associated to sales in the presence of tv and online.
+According to the above model the beta coefficients for online and tv are independent of each other, in the sense that increase in spending for online will only increase sales only by the beta coefficient for online.
+The above can be interpreted as for every $1000 increase in advertising, sale through online increase by 187 units and by tv 457 units.
+```{r}
+plot(advertising$sales,onlinetv$fitted.values,
+     xlab="Sales", ylab="Fittled values",
+     pch=19,main="Actuals v. Fitted")
+abline(0,1,col="red",lwd=3)
+```
+
+Since we remove print because we saw that it doesn't significantly affect the regression model because there was no proof that print is associated to sales in the presence of tv and online, we can check the synergy/interaction in markets for both tv and online spending because if we split a fixed budget for tv and online equally it, will increase/decrease the overall sales compared to just allocating to one of the two.
+We can check for interaction between online and tv and how both together will have its effect on the regression.
+
+```{r}
+regout = lm(sales~online+tv+online:tv, data = advertising)
+summary(regout)
+```
+
+After adding the interaction term we can see a significant increase in the R squared value and statistical significance of the interaction term. The results from the summary suggest that this model is superior to the other models. It explains that, the interaction term explains most of the variability in sales. Thus we can say that the model isn't just additive.
+We can interpret the interaction term beta coefficent as increase in effectiveness of the online advertisiment for a one unit increase in tv advertisement and vice versa.
+
+In order for the model to be usable, it needs to conform to certain assumptions.
+Let's check for Linearity, Normality and Equality of Variance.
+
+```{r}
+#Linearity
+plot(advertising$sales,regout$fitted.values,pch=19,main="Actual v. Fitted Values")
+abline(0,1,col="red",lwd=3)
+qqnorm(regout$residuals,pch=19,main="Normality Plot")
+qqline(regout$residuals,col="red",lwd=3)
+#Equality of Variances
+plot(regout$fitted.values,rstandard(regout),pch=19,
+     main="Standardized Residuals")
+abline(0,0,col="red",lwd=3)
+```
+
+```{r}
+sqrt(mean((regout$residuals)^2))
+```
+
+From plot 1, fitted vs sales, we can see that it is linear.
+From plot 2, we can see that the residuals are almost normal
+From plot 3, we can see that it is almost homoscedastic.
+
+##Questions:
+What statistical method will you use for your analysis and why?
+
+For my analysis I will use a linear regression. Firstly, the scatter plots suggest a linear increase between sales and the other independent variables. After modeling and testing the model for regression assumptions, we can see that it satisfies linearity, normality and homoscedasity. Thus I think regression is an appropriate model.
+
+How do you know that your model is good enough?
+
+With an R square of 96 and an RMSE of 0.93 I think the model is good enough, because 96% of variance is explained.
+The model accuracy can be explained by the high R squared value 
+
+What do the “standard errors” of beta coefficients mean?
+
+The standard error of a coefficient, tells us how much sampling variation there is if we resample and re estimate the coefficient.
+
+How did the model compute “degrees of freedom”?
+
+Degrees of freedom is the number of independent pieces of information that went into calculating the estimate. It is computed by subractng the total number of observations minus the number of parameters used. In our case we have 3 beta coefficients and the Intercept, therefore the degrees of freedom is 196.
+
+What is the best measure of model fit in this problem?
+
+The best measure of model fit is R square, Root mean squared deviation and the F test. 
+
+What are “residuals” in your model and why are they important?
+
+The residuals in the model are the difference between the actual value vs the value on the regression line. They are important because, residuals need to follow the assumptions of linearity, normality and equality of variance to validate our model. Residuals help us see outliers, if the relationship is linear or non-linear and if we have overlooked groups of observations.
